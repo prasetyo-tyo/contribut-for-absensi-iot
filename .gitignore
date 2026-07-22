@@ -1,0 +1,16 @@
+# Config files - edit sesuai environment masing-masing
+apps/config.php
+webapi/config/database.php
+
+# Log & temp
+cf-*.log
+cloudflared*.log
+cookies.txt
+4bs3n0K.zip
+*.tmp
+*.cache
+backup_uart_migration_20260610
+scan_kartu
+upgrade
+
+uploads/absen/

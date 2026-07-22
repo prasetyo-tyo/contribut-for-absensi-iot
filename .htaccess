@@ -1,0 +1,27 @@
+# Security: block direct web access to repository metadata, dumps, backups, and local config files.
+# This file is used by Apache. If the production server uses Nginx, apply the Nginx rule below as well.
+
+Options -Indexes
+ServerSignature Off
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block Git metadata and other hidden files/folders, except ACME challenge.
+    RewriteRule "(^|/)\.(?!well-known/)" - [F,L]
+
+    # Block database dumps, backups, archives, logs, env/config artifacts, and developer docs.
+    RewriteRule "(^|/)(database.*\.sql|.*\.(sql|sqlite|db|bak|backup|zip|rar|7z|tar|gz|log|env|ini|conf|yml|yaml|md|lock))$" - [F,L,NC]
+
+    # Block project-only directories that should never be browsed directly.
+    RewriteRule "^(cron|scan_kartu|shared|upgrade|backup_uart_migration_20260610)(/|$)" - [F,L,NC]
+</IfModule>
+
+<FilesMatch "(^\.|database.*\.sql$|.*\.(sql|sqlite|db|bak|backup|zip|rar|7z|tar|gz|log|env|ini|conf|yml|yaml|md|lock)$)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Deny from all
+    </IfModule>
+</FilesMatch>
