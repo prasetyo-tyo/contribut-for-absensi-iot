@@ -33,7 +33,7 @@ $startTime = microtime(true);
 include_once '../config/database.php';
 include_once '../class/absensi.php';
 
-define('DEFAULT_OUTLET_ID', 1);
+define('DEFAULT_OUTLET_ID', null);
 
 // ---- Validasi parameter ----
 if (!isset($_GET['uid']) || trim($_GET['uid']) === '') {
