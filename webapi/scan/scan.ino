@@ -26,6 +26,8 @@ byte readBlockData[18];
 String card_holder_name;
 // HTTPS langsung (server redirect HTTP->HTTPS, HTTPS works)
 const String sheet_url = "https://sbn-absensi.bakmibangkaasli17.com/webapi/api/create_legacy.php?uid=";
+const String register_url = "https://sbn-absensi.bakmibangkaasli17.com/webapi/api/scan-register.php";
+const String mode_url = "https://sbn-absensi.bakmibangkaasli17.com/webapi/api/register-mode.php?check=1";
  
 //-----------------------------------------
 #define WIFI_SSID "SBN1"           // Ganti dengan SSID WiFi Anda
@@ -41,6 +43,8 @@ bool isBlockEmpty(byte blockData[]);
 bool ReadDataFromBlock(int blockNum, byte readBlockData[]);
 String urlEncode(const String &value);
 bool doHttpsRequest(const String &url, String &responsePayload, int &httpCode);
+bool checkRegisterMode();
+bool sendRegisterData(const String &uidFisik, const String &tokenKartu);
 
 /****************************************************************************************************
  * setup() function
@@ -166,27 +170,99 @@ void setup()
   //MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
   if (WiFi.status() == WL_CONNECTED) {
     //-----------------------------------------------------------------
-    // Fallback: kalau Block 2 kosong atau gagal baca, kirim UID fisik
-    String uidParam;
-    if (readOk && !isBlockEmpty(readBlockData)) {
-      uidParam = String((char*)readBlockData);
-      uidParam.trim();
-      Serial.print(F("Block 2 ada data, mengirim: "));
-    } else {
-      uidParam = uidFisik;
-      Serial.print(F("Block 2 kosong, fallback UID fisik: "));
-    }
-    Serial.println(uidParam);
+    // Cek mode ESP: register atau absen?
+    bool isRegisterMode = checkRegisterMode();
     
-    card_holder_name = sheet_url + urlEncode(uidParam);
-    Serial.print(F("URL: "));
-    Serial.println(card_holder_name);
+    if (isRegisterMode) {
+      //-----------------------------------------------------------------
+      // MODE REGISTER: kirim ke scan-register.php (untuk auto-fill form)
+      String tokenKartu = "";
+      if (readOk && !isBlockEmpty(readBlockData)) {
+        tokenKartu = String((char*)readBlockData);
+        tokenKartu.trim();
+      }
+      
+      Serial.println(F("=== MODE REGISTER ==="));
+      Serial.print(F("UID Fisik: "));
+      Serial.println(uidFisik);
+      Serial.print(F("Token: "));
+      Serial.println(tokenKartu);
+      
+      if (sendRegisterData(uidFisik, tokenKartu)) {
+        Serial.println(F("✓ Register data terkirim!"));
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("MODE REGISTER");
+        lcd.setCursor(0, 1);
+        lcd.print("Data dikirim!");
+      } else {
+        Serial.println(F("✗ Register gagal kirim"));
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("MODE REGISTER");
+        lcd.setCursor(0, 1);
+        lcd.print("Gagal kirim...");
+      }
+    } else {
+      //-----------------------------------------------------------------
+      // MODE ABSEN: kirim ke create_legacy.php seperti biasa
+      // Fallback: kalau Block 2 kosong atau gagal baca, kirim UID fisik
+      String uidParam;
+      if (readOk && !isBlockEmpty(readBlockData)) {
+        uidParam = String((char*)readBlockData);
+        uidParam.trim();
+        Serial.print(F("Block 2 ada data, mengirim: "));
+      } else {
+        uidParam = uidFisik;
+        Serial.print(F("Block 2 kosong, fallback UID fisik: "));
+      }
+      Serial.println(uidParam);
+      
+      card_holder_name = sheet_url + urlEncode(uidParam);
+      Serial.print(F("URL: "));
+      Serial.println(card_holder_name);
 
-    //-----------------------------------------------------------------
-    // Langsung HTTPS (server redirect HTTP->HTTPS, HTTPS works dari curl)
-    String payload;
-    int httpCode = 0;
-    bool success = doHttpsRequest(card_holder_name, payload, httpCode);
+      //-----------------------------------------------------------------
+      // Langsung HTTPS (server redirect HTTP->HTTPS, HTTPS works dari curl)
+      String payload;
+      int httpCode = 0;
+      bool success = doHttpsRequest(card_holder_name, payload, httpCode);
+      
+      if (success && httpCode == 200) {
+        // SUCCESS!
+        Serial.println(payload);
+        
+        // Parse JSON response
+        DynamicJsonDocument doc(1024);
+        deserializeJson(doc, payload);
+        
+        String name = doc["nama"].as<String>();
+        
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        if (status == "IN") {
+          lcd.print("Selamat Datang,");
+        } else if (status == "OUT") {
+          lcd.print("Sampai Jumpa,");
+        } else {
+          lcd.print("Welcome,");
+        }
+        lcd.setCursor(0, 1);
+        lcd.print(name);
+        
+      } else {
+        Serial.printf("[HTTPS] failed, code: %d\n", httpCode);
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Error:");
+        lcd.setCursor(0, 1);
+        lcd.print("HTTPS failed");
+      }
+    }
+    delay(3000);
+  }
+  //MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+}
     
     if (success && httpCode == 200) {
       // SUCCESS!
@@ -336,6 +412,71 @@ String getUidFisik() {
   uid.trim();
   return uid;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FUNGSI: Cek mode register dari server
+// ═══════════════════════════════════════════════════════════════════════════
+bool checkRegisterMode() {
+  String payload;
+  int httpCode = 0;
+  
+  if (!doHttpsRequest(mode_url, payload, httpCode) || httpCode != 200) {
+    return false; // default: mode absen
+  }
+  
+  DynamicJsonDocument doc(256);
+  DeserializationError error = deserializeJson(doc, payload);
+  
+  if (error) {
+    Serial.print(F("JSON parse error mode: "));
+    Serial.println(error.c_str());
+    return false;
+  }
+  
+  String mode = doc["mode"].as<String>();
+  Serial.print(F("Server mode: "));
+  Serial.println(mode);
+  
+  return (mode == "register");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FUNGSI: Kirim data registrasi ke server (POST JSON)
+// ═══════════════════════════════════════════════════════════════════════════
+bool sendRegisterData(const String &uidFisik, const String &tokenKartu) {
+  // Build JSON payload
+  String payload = "{\"uid_fisik\":\"" + uidFisik + "\",\"token_kartu\":\"" + tokenKartu + "\"}";
+  
+  std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+  client->setInsecure();
+  
+  HTTPClient http;
+  if (!http.begin(*client, register_url)) {
+    Serial.println(F("[HTTPS] begin register failed"));
+    return false;
+  }
+  
+  http.addHeader("Content-Type", "application/json");
+  http.setTimeout(15000);
+  
+  int httpCode = http.POST(payload);
+  
+  if (httpCode > 0) {
+    String response = http.getString();
+    Serial.print(F("[HTTPS] Register POST code: "));
+    Serial.println(httpCode);
+    Serial.print(F("Response: "));
+    Serial.println(response);
+    http.end();
+    return (httpCode == 200);
+  } else {
+    Serial.printf("[HTTPS] Register POST failed: %s\n", http.errorToString(httpCode).c_str());
+    http.end();
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 
 bool isBlockEmpty(byte blockData[]) {
   for (int j = 0; j < 16; j++) {
