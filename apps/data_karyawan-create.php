@@ -361,7 +361,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
 
     // ─── Set Mode Register saat halaman dibuka ───────────────────
     function setRegisterMode() {
-      fetch(MODE_URL, {
+      return fetch(MODE_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'register' })
@@ -369,9 +369,11 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
       .then(function(r) { return r.json(); })
       .then(function(d) {
         console.log('[RFID] Mode register aktif:', d);
+        return d;
       })
       .catch(function(e) {
         console.warn('[RFID] Gagal set mode register:', e);
+        return null;
       });
     }
 
@@ -403,8 +405,10 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
     badgeContainer.style.cssText = 'padding: 8px 12px; font-size: 14px; border-radius: 5px;';
     badgeContainer.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> <span id="rfid-status-text">Mengaktifkan mode REGISTER...</span>';
 
-    // Verifikasi mode dari server, lalu update badge
-    fetch(MODE_URL + '?check=1')
+    // Set mode register DULU, baru cek (hindari race condition)
+    setRegisterMode().then(function() {
+      return fetch(MODE_URL + '?check=1');
+    })
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (d.ok && d.mode === 'register') {
@@ -495,9 +499,6 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
     }
 
     // ─── Mulai semua ─────────────────────────────────────────────
-    // Set mode register dulu
-    setRegisterMode();
-
     // Mulai polling scan
     setInterval(doPoll, POLL_INTERVAL);
 
