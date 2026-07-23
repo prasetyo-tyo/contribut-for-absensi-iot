@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once dirname(__DIR__) . '/apps/config.php';
+require_once dirname(__DIR__, 2) . '/apps/config.php';
 
 // Ambil scan terbaru yang belum diambil
 $sql = "SELECT id, uid_fisik, token_kartu, internal_uid, scanned_at 

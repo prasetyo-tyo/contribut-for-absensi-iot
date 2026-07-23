@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once dirname(__DIR__) . '/apps/config.php';
+require_once dirname(__DIR__, 2) . '/apps/config.php';
 
 function getMode($link) {
     $sql = "SELECT setting_value FROM app_settings WHERE setting_key = 'esp_mode' LIMIT 1";

@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 require_once dirname(__DIR__, 2) . '/shared/card_security.php';
 
 // Database connection
-require_once dirname(__DIR__) . '/apps/config.php';
+require_once dirname(__DIR__, 2) . '/apps/config.php';
 
 // Parse input
 $rawInput = file_get_contents('php://input');
