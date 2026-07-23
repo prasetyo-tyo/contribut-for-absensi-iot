@@ -40,7 +40,10 @@ void loop() {
   Serial.print(F("UID Fisik: "));
   String uidFisik = "";
   for (byte i = 0; i < mfrc522.uid.size; i++) {
-    if (mfrc522.uid.uidByte[i] < 0x10) Serial.print("0");
+    if (mfrc522.uid.uidByte[i] < 0x10) {
+      Serial.print("0");
+      uidFisik += "0";  // ← FIX: pad leading zero
+    }
     Serial.print(mfrc522.uid.uidByte[i], HEX);
     uidFisik += String(mfrc522.uid.uidByte[i], HEX);
   }
@@ -50,11 +53,21 @@ void loop() {
   // ============================================================
   // ISI TOKEN YANG MAU DITULIS KE KARTU
   // ============================================================
-  // Token ini nantinya disimpan di database kolom uid atau token_kartu
-  // Cocokkan dengan data karyawan di web admin.
+  // Token ini nantinya disimpan di database kolom token_kartu.
+  // Token HARUS BERBEDA dari UID fisik.
   //
-  // Contoh: pakai UID fisik sebagai token (biar gampang)
-  String tokenToWrite = uidFisik;  // <-- GANTI INI KALAU MAU TOKEN LAIN
+  // Server akan generate token baru jika token == UID fisik,
+  // tapi lebih baik tulis token unik langsung dari sini.
+  //
+  // Generate 16 karakter hex unik (8 bytes random)
+  // ============================================================
+  String tokenToWrite = "";
+  for (int i = 0; i < 8; i++) {
+    byte rb = random(0, 256);
+    if (rb < 0x10) tokenToWrite += "0";
+    tokenToWrite += String(rb, HEX);
+  }
+  tokenToWrite.toUpperCase();
   // ============================================================
 
   Serial.print(F("Token yang akan ditulis: "));
