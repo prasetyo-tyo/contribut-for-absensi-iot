@@ -29,7 +29,7 @@ const String sheet_url = "https://sbn-absensi.bakmibangkaasli17.com/webapi/api/c
  
 //-----------------------------------------
 #define WIFI_SSID "SBN1"           // Ganti dengan SSID WiFi Anda
-#define WIFI_PASSWORD "17171717"   // Ganti dengan Password WiFi Anda
+#define WIFI_PASSWORD "17171717#"   // Ganti dengan Password WiFi Anda
 //-----------------------------------------
 
 //Initialize the LCD display

@@ -133,6 +133,25 @@ CREATE TABLE `data_absen_foto` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- Tabel untuk queue scan RFID saat registrasi karyawan baru
+-- Data ditulis oleh ESP (via scan-register.php) dan dibaca
+-- oleh web form (data_karyawan-create.php) via auto-polling.
+-- ============================================================
+CREATE TABLE `rfid_scan_queue` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `uid_fisik` varchar(50) NOT NULL,
+  `token_kartu` varchar(100) DEFAULT NULL,
+  `internal_uid` varchar(100) DEFAULT NULL,
+  `is_consumed` tinyint(1) NOT NULL DEFAULT 0,
+  `scanned_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_scan_consumed` (`is_consumed`),
+  KEY `idx_scan_scanned_at` (`scanned_at`),
+  KEY `idx_scan_uid_fisik` (`uid_fisik`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- Developer / Debug Log
 -- Mencatat semua request API untuk keperluan debugging,
 -- monitoring, dan analisis mismatch kartu RFID.

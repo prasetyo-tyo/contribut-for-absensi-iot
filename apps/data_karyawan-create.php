@@ -318,7 +318,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
         <div class="modal-header">
           <h5 class="modal-title" id="exampleModalLabel">Siap untuk Keluar?</h5>
           <button class="close" type="button" data-dismiss="modal" aria-label="Close">
-            <span aria-hidden="true">�</span>
+            <span aria-hidden="true">�</span>
           </button>
         </div>
         <div class="modal-body">Pilih "Logout" di bawah jika Anda siap untuk mengakhiri sesi Anda saat ini.</div>
@@ -340,5 +340,109 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
   <!-- Custom scripts for all pages-->
   <script src="../src/js/sb-admin-2.min.js"></script>
   <script src="karyawan_picture_compress.js"></script>
+
+  <!-- ═══ RFID Scan Auto-Polling ═══════════════════════════════════════ -->
+  <!-- Poll scan-poll.php setiap 2 detik. Jika ESP scan kartu,          -->
+  <!-- field UID Fisik dan Token Kartu otomatis terisi.                 -->
+  <script>
+  (function() {
+    // Ganti URL ini dengan domain production Anda
+    var POLL_URL = '/webapi/api/scan-poll.php';
+    var POLL_INTERVAL = 2000; // 2 detik
+    var lastScanId = null;
+    var pollingActive = true;
+
+    // Referensi element
+    var uidFisikInput = document.querySelector('input[name="uid_fisik"]');
+    var tokenInput = document.querySelector('input[name="token_kartu"]');
+    var statusBadge = document.getElementById('rfid-scan-status');
+
+    // Buat badge status RFID scan
+    var badgeContainer = document.createElement('div');
+    badgeContainer.id = 'rfid-scan-status';
+    badgeContainer.className = 'alert alert-info d-flex align-items-center mb-3';
+    badgeContainer.style.cssText = 'padding: 8px 12px; font-size: 14px; border-radius: 5px;';
+    badgeContainer.innerHTML = '<i class="fas fa-wifi mr-2"></i> <span id="rfid-status-text">Menunggu scan kartu RFID...</span>';
+
+    // Insert badge di atas form UID fields
+    var uidField = uidFisikInput.closest('.form-row');
+    if (uidField && uidField.parentNode) {
+      uidField.parentNode.insertBefore(badgeContainer, uidField);
+    }
+
+    function updateStatus(text, type) {
+      var statusEl = document.getElementById('rfid-status-text');
+      if (statusEl) {
+        statusEl.textContent = text;
+      }
+      if (badgeContainer) {
+        badgeContainer.className = 'alert alert-' + (type || 'info') + ' d-flex align-items-center mb-3';
+        badgeContainer.style.cssText = 'padding: 8px 12px; font-size: 14px; border-radius: 5px;';
+      }
+    }
+
+    function doPoll() {
+      if (!pollingActive) return;
+
+      fetch(POLL_URL, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (data.ok && data.scan) {
+          var scan = data.scan;
+
+          // Isi UID Fisik
+          if (uidFisikInput && scan.uid_fisik) {
+            uidFisikInput.value = scan.uid_fisik;
+            uidFisikInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+
+          // Isi Token Kartu
+          if (tokenInput && scan.token_kartu) {
+            tokenInput.value = scan.token_kartu;
+            tokenInput.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+
+          // Update status
+          var tokenInfo = scan.token_kartu ? ' | Token: ' + scan.token_kartu.substring(0, 16) + '...' : ' | Token: kosong';
+          updateStatus('Kartu terdeteksi! UID: ' + scan.uid_fisik + tokenInfo, 'success');
+
+          // Highlight fields (blink effect)
+          [uidFisikInput, tokenInput].forEach(function(el) {
+            if (el && el.value) {
+              el.style.borderColor = '#28a745';
+              el.style.boxShadow = '0 0 8px rgba(40,167,69,0.5)';
+              setTimeout(function() {
+                el.style.borderColor = '';
+                el.style.boxShadow = '';
+              }, 3000);
+            }
+          });
+        }
+      })
+      .catch(function(err) {
+        // Silent fail - server mungkin belum deploy
+        console.log('RFID poll error:', err);
+      });
+    }
+
+    // Mulai polling
+    setInterval(doPoll, POLL_INTERVAL);
+
+    // Toggle polling dengan keyboard shortcut (Ctrl+Shift+R)
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+        pollingActive = !pollingActive;
+        updateStatus(
+          pollingActive ? 'Menunggu scan kartu RFID...' : 'Polling DINONAKTIFKAN (Ctrl+Shift+R untuk aktifkan)',
+          pollingActive ? 'info' : 'warning'
+        );
+      }
+    });
+  })();
+  </script>
+
 </body>
 </html>
