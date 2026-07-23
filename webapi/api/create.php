@@ -6,7 +6,7 @@ include_once '../config/database.php';
 include_once '../class/absensi.php';
 require_once dirname(__DIR__, 2) . '/shared/card_security.php';
 
-define('DEFAULT_OUTLET_ID', 1);
+define('DEFAULT_OUTLET_ID', null);
 
 $database = new Database();
 $db = $database->getConnection();
