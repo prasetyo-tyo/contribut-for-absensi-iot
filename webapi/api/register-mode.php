@@ -61,14 +61,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['check'])) {
     // Cek mode saat ini
     $mode = getMode($link);
     
-    // Mode register timeout: jika sudah > 60 detik sejak terakhir di-set, auto-reset ke absen
+    // Mode register timeout: jika sudah > 120 detik sejak terakhir di-set, auto-reset ke absen
+    // Gunakan TIMESTAMPDIFF MySQL agar timezone konsisten (Hindari bug timezone PHP vs MySQL)
     if ($mode === 'register') {
-        $sql = "SELECT updated_at FROM app_settings WHERE setting_key = 'esp_mode' LIMIT 1";
+        $sql = "SELECT TIMESTAMPDIFF(SECOND, updated_at, NOW()) as age_seconds
+                FROM app_settings WHERE setting_key = 'esp_mode' LIMIT 1";
         $result = mysqli_query($link, $sql);
         if ($result && mysqli_num_rows($result) > 0) {
             $row = mysqli_fetch_assoc($result);
-            $updated_at = strtotime($row['updated_at']);
-            if ((time() - $updated_at) > 120) {
+            $ageSeconds = (int)$row['age_seconds'];
+            if ($ageSeconds > 120) {
                 // Auto-reset ke absen setelah 2 menit
                 setMode($link, 'absen');
                 $mode = 'absen';
