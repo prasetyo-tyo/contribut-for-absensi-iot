@@ -54,17 +54,19 @@ if (!empty($token_kartu)) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// GENERATE TOKEN UNIK SERVER-SIDE
+// TOKEN KARTU
 //
-// Token kartu SELALU di-generate oleh server.
-// Alasan:
-// - UID fisik = ID hardware chip RFID (tetap selamanya, 8 hex chars)
-// - Token kartu = secret unik yang BERBEDA dari UID
+// Token berasal dari Block 2 kartu (dibaca oleh ESP saat scan).
+// Jika token kosong atau sama dengan UID fisik, server auto-generate
+// token unik 16 hex chars.
 //
-// Token dari ESP diabaikan, karena Block 2 kartu biasanya
-// berisi UID fisik yang ditulis oleh write_kartu.ino (bukan token unik).
+// NANTI: setelah write_kartu.ino diisi token unik, token akan berbeda
+// dari UID fisik dan dikirim oleh ESP langsung.
 // ═══════════════════════════════════════════════════════════════
-$token_kartu = strtoupper(bin2hex(random_bytes(8)));
+if (empty($token_kartu) || card_normalize_value($token_kartu) === $uid_fisik) {
+    // Generate 16 karakter hex unik (8 bytes random)
+    $token_kartu = strtoupper(bin2hex(random_bytes(8)));
+}
 
 // Build internal UID (opsional, untuk referensi)
 $internal_uid = '';
