@@ -237,12 +237,13 @@ void setup()
         deserializeJson(doc, payload);
         
         String name = doc["nama"].as<String>();
+        String absenStatus = doc["status"].as<String>();
         
         lcd.clear();
         lcd.setCursor(0, 0);
-        if (status == "IN") {
+        if (absenStatus == "IN") {
           lcd.print("Selamat Datang,");
-        } else if (status == "OUT") {
+        } else if (absenStatus == "OUT") {
           lcd.print("Sampai Jumpa,");
         } else {
           lcd.print("Welcome,");
@@ -262,45 +263,6 @@ void setup()
     delay(3000);
   }
   //MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-}
-    
-    if (success && httpCode == 200) {
-      // SUCCESS!
-      Serial.println(payload);
-      
-      // Parse JSON response
-      DynamicJsonDocument doc(1024);
-      deserializeJson(doc, payload);
-      
-      String name = doc["nama"].as<String>();
-      String status = doc["status"].as<String>();
-      
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      if (status == "IN") {
-        lcd.print("Selamat Datang,");
-      } else if (status == "OUT") {
-        lcd.print("Sampai Jumpa,");
-      } else {
-        lcd.print("Welcome,");
-      }
-      lcd.setCursor(0, 1);
-      lcd.print(name);
-      
-    } else {
-      Serial.printf("[HTTPS] failed, code: %d\n", httpCode);
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Error:");
-      lcd.setCursor(0, 1);
-      lcd.print("HTTPS failed");
-    }
-    delay(3000);
-  }
-  //MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-}
-
-
 
 
 /****************************************************************************************************
