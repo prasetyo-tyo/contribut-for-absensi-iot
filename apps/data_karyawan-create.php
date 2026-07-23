@@ -399,11 +399,11 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
     // ─── Buat Badge Status RFID ──────────────────────────────────
     var badgeContainer = document.createElement('div');
     badgeContainer.id = 'rfid-scan-status';
-    badgeContainer.className = 'alert alert-success d-flex align-items-center mb-3';
+    badgeContainer.className = 'alert alert-info d-flex align-items-center mb-3';
     badgeContainer.style.cssText = 'padding: 8px 12px; font-size: 14px; border-radius: 5px;';
-    badgeContainer.innerHTML = '<i class="fas fa-check-circle mr-2"></i> <span id="rfid-status-text">Mode REGISTER aktif — Tap kartu untuk isi UID otomatis</span>';
+    badgeContainer.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> <span id="rfid-status-text">Mengaktifkan mode REGISTER...</span>';
 
-    // Ambil status dari MODE_URL dulu
+    // Verifikasi mode dari server, lalu update badge
     fetch(MODE_URL + '?check=1')
       .then(function(r) { return r.json(); })
       .then(function(d) {
@@ -413,9 +413,17 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
             'success',
             'fa-check-circle'
           );
+        } else {
+          updateBadge(
+            'Mode gagal aktif (mode: ' + (d.mode || '?') + '). Coba muat ulang halaman.',
+            'warning',
+            'fa-exclamation-triangle'
+          );
         }
       })
-      .catch(function() { /* ignore */ });
+      .catch(function() {
+        updateBadge('Gagal koneksi ke server. Coba muat ulang.', 'danger', 'fa-times-circle');
+      });
 
     function updateBadge(text, type, icon) {
       icon = icon || 'fa-wifi';
