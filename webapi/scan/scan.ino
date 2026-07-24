@@ -41,8 +41,8 @@ byte bufferLen = 18;
 byte readBlockData[18];
 
 // ─── WiFi ──────────────────────────────────────────────────
-#define WIFI_SSID     "SBN1"
-#define WIFI_PASSWORD "17171717#"
+#define WIFI_SSID     "TYO"
+#define WIFI_PASSWORD "SCORPIO2510#"
 
 // ─── Server URLs ───────────────────────────────────────────
 const String legacy_url = "https://sbn-absensi.bakmibangkaasli17.com/webapi/api/create_legacy.php?uid=";
@@ -201,18 +201,12 @@ void loop()
       }
     } else {
       // ═══════ MODE ABSEN ═══════
-      String uidParam;
-      if (readOk && !isBlockEmpty(readBlockData)) {
-        uidParam = String((char*)readBlockData);
-        uidParam.trim();
-        Serial.print(F("Block 2 ada data, mengirim: "));
-      } else {
-        uidParam = uidFisik;
-        Serial.print(F("Block 2 kosong, fallback UID fisik: "));
-      }
-      Serial.println(uidParam);
+      // Selalu kirim UID FISIK ke create_legacy.php
+      // Token Block 2 TIDAK dipakai untuk absensi — hanya untuk registrasi
+      Serial.print(F("UID fisik dikirim ke absensi: "));
+      Serial.println(uidFisik);
 
-      card_holder_name = legacy_url + urlEncode(uidParam);
+      card_holder_name = legacy_url + urlEncode(uidFisik);
       Serial.print(F("URL: "));
       Serial.println(card_holder_name);
 
