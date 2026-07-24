@@ -63,9 +63,20 @@ if (!empty($token_kartu)) {
 // NANTI: setelah write_kartu.ino diisi token unik, token akan berbeda
 // dari UID fisik dan dikirim oleh ESP langsung.
 // ═══════════════════════════════════════════════════════════════
-if (empty($token_kartu) || card_normalize_value($token_kartu) === $uid_fisik) {
-    // Generate 16 karakter hex unik (8 bytes random)
+if (empty($token_kartu)) {
+    // Token kosong → generate baru
     $token_kartu = strtoupper(bin2hex(random_bytes(8)));
+} else {
+    // Normalize token
+    $token_kartu = card_normalize_value($token_kartu);
+    $token_clean = ltrim($token_kartu, '0') ?: '0';
+    $uid_clean = ltrim($uid_fisik, '0') ?: '0';
+    
+    // Jika token (dari Block 2) sama dengan UID fisik secara numerik → generate baru
+    // Contoh: D05A55F (7 chars) == D005A55F (8 chars) → SAMA
+    if ($token_clean === $uid_clean) {
+        $token_kartu = strtoupper(bin2hex(random_bytes(8)));
+    }
 }
 
 // Build internal UID (opsional, untuk referensi)
