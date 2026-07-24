@@ -11,19 +11,21 @@ require_once "config.php";
 $nama_outlet = '';
 $kode_alat = '';
 $keterangan = '';
+$device_id = '';
 $error = '';
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $nama_outlet = trim($_POST['nama_outlet'] ?? '');
     $kode_alat = trim($_POST['kode_alat'] ?? '');
     $keterangan = trim($_POST['keterangan'] ?? '');
+    $device_id = trim($_POST['device_id'] ?? '');
 
     if ($nama_outlet === '') {
         $error = 'Nama outlet wajib diisi.';
     } else {
-        $sql = "INSERT INTO data_outlet (nama_outlet, kode_alat, keterangan) VALUES (?, ?, ?)";
+        $sql = "INSERT INTO data_outlet (nama_outlet, kode_alat, keterangan, device_id) VALUES (?, ?, ?, ?)";
         $stmt = mysqli_prepare($link, $sql);
-        mysqli_stmt_bind_param($stmt, "sss", $nama_outlet, $kode_alat, $keterangan);
+        mysqli_stmt_bind_param($stmt, "ssss", $nama_outlet, $kode_alat, $keterangan, $device_id);
         if (mysqli_stmt_execute($stmt)) {
             header("location: data_outlet-index.php");
             exit;
@@ -70,6 +72,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             <div class="form-group">
                                 <label>Keterangan</label>
                                 <textarea name="keterangan" class="form-control" rows="3"><?php echo htmlspecialchars($keterangan); ?></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Device ID</label>
+                                <input type="text" name="device_id" class="form-control" value="<?php echo htmlspecialchars($device_id); ?>" placeholder="Misal: ALAT-01">
+                                <small class="form-text text-muted">ID unik ESP8266. Lihat di serial monitor atau bodi alat.</small>
                             </div>
                             <button type="submit" class="btn btn-success">Simpan</button>
                             <a href="data_outlet-index.php" class="btn btn-primary">Batal</a>

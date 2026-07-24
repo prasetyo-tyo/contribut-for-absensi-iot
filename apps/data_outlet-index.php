@@ -13,7 +13,11 @@ $csrfToken = $_SESSION['csrf_token'];
 
 require_once "config.php";
 
-$result = mysqli_query($link, "SELECT id, nama_outlet, kode_alat, keterangan, created_at FROM data_outlet ORDER BY id ASC");
+$result = mysqli_query($link, "SELECT o.id, o.nama_outlet, o.kode_alat, o.keterangan, o.device_id, o.created_at,
+    dc.mac_address, dc.wifi_ssid, dc.last_seen_at
+    FROM data_outlet o
+    LEFT JOIN device_config dc ON o.device_id = dc.device_id
+    ORDER BY o.id ASC");
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -47,8 +51,9 @@ $result = mysqli_query($link, "SELECT id, nama_outlet, kode_alat, keterangan, cr
                                 <tr>
                                     <th>ID</th>
                                     <th>Nama Outlet</th>
-                                    <th>Kode Alat</th>
-                                    <th>Keterangan</th>
+                                    <th>Device ID</th>
+                                    <th>WiFi</th>
+                                    <th>Status</th>
                                     <th>Dibuat</th>
                                     <th>Action</th>
                                 </tr>
@@ -59,8 +64,24 @@ $result = mysqli_query($link, "SELECT id, nama_outlet, kode_alat, keterangan, cr
                                         <tr>
                                             <td><?php echo (int) $row['id']; ?></td>
                                             <td><?php echo htmlspecialchars($row['nama_outlet']); ?></td>
-                                            <td><?php echo htmlspecialchars($row['kode_alat'] ?? '-'); ?></td>
-                                            <td><?php echo htmlspecialchars($row['keterangan'] ?? '-'); ?></td>
+                                            <td>
+                                                <?php if (!empty($row['device_id'])): ?>
+                                                    <a href="device-wifi-config.php?device_id=<?php echo urlencode($row['device_id']); ?>" title="Kelola WiFi">
+                                                        <?php echo htmlspecialchars($row['device_id']); ?>
+                                                    </a>
+                                                <?php else: ?>
+                                                    <span class="text-muted">-</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td><?php echo htmlspecialchars($row['wifi_ssid'] ?? '-'); ?></td>
+                                            <td>
+                                                <?php
+                                                $isOnline = $row['last_seen_at'] && strtotime($row['last_seen_at']) > strtotime('-60 seconds');
+                                                ?>
+                                                <span class="badge badge-<?php echo $isOnline ? 'success' : 'secondary'; ?>">
+                                                    <?php echo $isOnline ? 'ONLINE' : 'OFFLINE'; ?>
+                                                </span>
+                                            </td>
                                             <td><?php echo htmlspecialchars($row['created_at']); ?></td>
                                             <td>
                                                 <a href="data_outlet-update.php?id=<?php echo (int) $row['id']; ?>" title="Edit"><span class="fa fa-edit"></span></a>
@@ -74,7 +95,7 @@ $result = mysqli_query($link, "SELECT id, nama_outlet, kode_alat, keterangan, cr
                                         </tr>
                                     <?php endwhile; ?>
                                 <?php else: ?>
-                                    <tr><td colspan="6" class="text-center">Belum ada data outlet.</td></tr>
+                                    <tr><td colspan="7" class="text-center">Belum ada data outlet.</td></tr>
                                 <?php endif; ?>
                                 </tbody>
                             </table>

@@ -13,7 +13,7 @@ if ($id <= 0) {
     die('ID outlet tidak valid.');
 }
 
-$stmt = mysqli_prepare($link, "SELECT id, nama_outlet, kode_alat, keterangan FROM data_outlet WHERE id = ?");
+$stmt = mysqli_prepare($link, "SELECT id, nama_outlet, kode_alat, keterangan, device_id FROM data_outlet WHERE id = ?");
 mysqli_stmt_bind_param($stmt, "i", $id);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
@@ -28,12 +28,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $nama_outlet = trim($_POST['nama_outlet'] ?? '');
     $kode_alat = trim($_POST['kode_alat'] ?? '');
     $keterangan = trim($_POST['keterangan'] ?? '');
+    $device_id = trim($_POST['device_id'] ?? '');
 
     if ($nama_outlet === '') {
         $error = 'Nama outlet wajib diisi.';
     } else {
-        $update = mysqli_prepare($link, "UPDATE data_outlet SET nama_outlet = ?, kode_alat = ?, keterangan = ? WHERE id = ?");
-        mysqli_stmt_bind_param($update, "sssi", $nama_outlet, $kode_alat, $keterangan, $id);
+        $update = mysqli_prepare($link, "UPDATE data_outlet SET nama_outlet = ?, kode_alat = ?, keterangan = ?, device_id = ? WHERE id = ?");
+        mysqli_stmt_bind_param($update, "ssssi", $nama_outlet, $kode_alat, $keterangan, $device_id, $id);
         if (mysqli_stmt_execute($update)) {
             header("location: data_outlet-index.php");
             exit;
@@ -44,6 +45,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $outlet['nama_outlet'] = $nama_outlet;
     $outlet['kode_alat'] = $kode_alat;
     $outlet['keterangan'] = $keterangan;
+    $outlet['device_id'] = $device_id;
 }
 ?>
 <!DOCTYPE html>
@@ -84,8 +86,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                                 <label>Keterangan</label>
                                 <textarea name="keterangan" class="form-control" rows="3"><?php echo htmlspecialchars($outlet['keterangan'] ?? ''); ?></textarea>
                             </div>
+                            <div class="form-group">
+                                <label>Device ID</label>
+                                <input type="text" name="device_id" class="form-control" value="<?php echo htmlspecialchars($outlet['device_id'] ?? ''); ?>" placeholder="Misal: ALAT-01">
+                                <small class="form-text text-muted">ID unik ESP8266. Lihat di serial monitor atau bodi alat.</small>
+                            </div>
                             <button type="submit" class="btn btn-success">Simpan</button>
                             <a href="data_outlet-index.php" class="btn btn-primary">Batal</a>
+<?php
+// Tampilkan WiFi status jika device sudah terdaftar
+$deviceIdVal = $outlet['device_id'] ?? '';
+if (!empty($deviceIdVal)) {
+    $devSql = "SELECT mac_address, wifi_ssid, wifi_signal, last_seen_at, current_mode
+               FROM device_config WHERE device_id = ? LIMIT 1";
+    $devStmt = mysqli_prepare($link, $devSql);
+    mysqli_stmt_bind_param($devStmt, "s", $deviceIdVal);
+    mysqli_stmt_execute($devStmt);
+    $devResult = mysqli_stmt_get_result($devStmt);
+    $dev = mysqli_fetch_assoc($devResult);
+    mysqli_stmt_close($devStmt);
+    
+    if ($dev) {
+        $isOnline = $dev['last_seen_at'] && strtotime($dev['last_seen_at']) > strtotime('-60 seconds');
+?>
+<div class="card mt-3 border-<?php echo $isOnline ? 'success' : 'secondary'; ?>">
+    <div class="card-header bg-<?php echo $isOnline ? 'success' : 'secondary'; ?> text-white">
+        <i class="fas fa-wifi"></i> Status Device ESP
+    </div>
+    <div class="card-body">
+        <table class="table table-sm mb-0">
+            <tr><td>MAC Address</td><td><?php echo htmlspecialchars($dev['mac_address'] ?? '-'); ?></td></tr>
+            <tr><td>WiFi Saat Ini</td><td><?php echo htmlspecialchars($dev['wifi_ssid'] ?? '-'); ?></td></tr>
+            <tr><td>Sinyal</td><td><?php echo ($dev['wifi_signal'] ?? 0) . ' dBm'; ?></td></tr>
+            <tr><td>Mode</td><td><span class="badge badge-<?php echo ($dev['current_mode'] ?? 'absen') === 'register' ? 'warning' : 'primary'; ?>"><?php echo strtoupper($dev['current_mode'] ?? 'absen'); ?></span></td></tr>
+            <tr><td>Status</td><td><span class="badge badge-<?php echo $isOnline ? 'success' : 'danger'; ?>"><?php echo $isOnline ? 'ONLINE' : 'OFFLINE'; ?></span></td></tr>
+            <tr><td>Last Seen</td><td><?php echo $dev['last_seen_at'] ?? '-'; ?></td></tr>
+        </table>
+        <a href="device-wifi-config.php?device_id=<?php echo urlencode($deviceIdVal); ?>" class="btn btn-info btn-sm mt-2">
+            <i class="fas fa-wifi"></i> Kelola WiFi
+        </a>
+    </div>
+</div>
+<?php
+    }
+}
+?>
                         </form>
                     </div>
                 </div>
