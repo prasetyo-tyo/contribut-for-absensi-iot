@@ -54,30 +54,15 @@ if (!empty($token_kartu)) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// TOKEN KARTU
+// TOKEN KARTU — SERVER GENERATE UNIK
 //
-// Token berasal dari Block 2 kartu (dibaca oleh ESP saat scan).
-// Jika token kosong atau sama dengan UID fisik, server auto-generate
-// token unik 16 hex chars.
-//
-// NANTI: setelah write_kartu.ino diisi token unik, token akan berbeda
-// dari UID fisik dan dikirim oleh ESP langsung.
+// Token dari ESP diabaikan karena:
+// 1. Block 2 kartu biasanya berisi UID fisik (default write_kartu.ino)
+// 2. UID fisik dari Block 2 sering kehilangan leading zero
+//    (byte 05 → "5" bukan "05"), jadi D05A55F vs D005A55F
+// 3. Server generate 16-char hex random → dijamin unik & beda dari UID
 // ═══════════════════════════════════════════════════════════════
-if (empty($token_kartu)) {
-    // Token kosong → generate baru
-    $token_kartu = strtoupper(bin2hex(random_bytes(8)));
-} else {
-    // Normalize token
-    $token_kartu = card_normalize_value($token_kartu);
-    $token_clean = ltrim($token_kartu, '0') ?: '0';
-    $uid_clean = ltrim($uid_fisik, '0') ?: '0';
-    
-    // Jika token (dari Block 2) sama dengan UID fisik secara numerik → generate baru
-    // Contoh: D05A55F (7 chars) == D005A55F (8 chars) → SAMA
-    if ($token_clean === $uid_clean) {
-        $token_kartu = strtoupper(bin2hex(random_bytes(8)));
-    }
-}
+$token_kartu = strtoupper(bin2hex(random_bytes(8)));
 
 // Build internal UID (opsional, untuk referensi)
 $internal_uid = '';
