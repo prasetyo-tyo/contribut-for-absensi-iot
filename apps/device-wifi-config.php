@@ -104,6 +104,29 @@ if (!$device) {
                     </div>
                 </div>
 
+                <!-- Danger Zone: Reset Device -->
+                <div class="card shadow mb-4 border-left-danger">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-danger">
+                            <i class="fas fa-exclamation-triangle"></i> Reset Device
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted">
+                            Tombol ini akan mengirim perintah ke ESP untuk <strong>menghapus semua data EEPROM</strong>
+                            (WiFi, Device ID) dan <strong>reboot</strong>. Setelah reboot, ESP akan masuk ke
+                            <strong>AP Mode</strong> (ESP-RFID-XXXX) untuk konfigurasi ulang WiFi.
+                        </p>
+                        <p class="small text-warning">
+                            <i class="fas fa-clock"></i> ESP akan merespon dalam maksimal 15 detik setelah tombol ditekan.
+                        </p>
+                        <button id="btn-reset" class="btn btn-danger" onclick="resetDevice()">
+                            <i class="fas fa-trash-alt"></i> Reset EEPROM Device
+                        </button>
+                        <span id="reset-status" class="ml-2" style="display:none;"></span>
+                    </div>
+                </div>
+
                 <!-- WiFi Scan Section -->
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -346,6 +369,57 @@ function applyWifi() {
         alert('Gagal koneksi ke server.');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-save"></i> Terapkan WiFi Baru ke ESP';
+    });
+}
+
+// ─── Reset Device (EEPROM Wipe) ────────────────
+function resetDevice() {
+    var mac = document.getElementById('dev-mac').textContent.trim();
+    if (!mac || mac === 'Belum terdaftar') {
+        alert('MAC address belum tersedia. Pastikan device sudah terdaftar.');
+        return;
+    }
+    if (!confirm('YAKIN ingin reset EEPROM device ini?\n\nSetelah reset, ESP akan:\n1. Menghapus semua data WiFi & Device ID\n2. Reboot ke AP Mode (ESP-RFID-XXXX)\n3. Perlu konfigurasi ulang WiFi dari awal')) {
+        return;
+    }
+
+    var btn = document.getElementById('btn-reset');
+    var statusEl = document.getElementById('reset-status');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim perintah reset...';
+    statusEl.style.display = 'inline';
+    statusEl.className = 'text-info';
+    statusEl.textContent = 'Mengirim perintah...';
+
+    fetch('../webapi/api/device-reset.php?mac=' + encodeURIComponent(mac))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        if (d.ok) {
+            statusEl.className = 'text-success';
+            statusEl.textContent = 'Perintah reset berhasil dikirim! ESP akan wipe EEPROM dan reboot dalam 15 detik.';
+            // Update status setelah beberapa detik
+            setTimeout(function() {
+                checkStatus();
+                statusEl.className = 'text-warning';
+                statusEl.textContent = 'Menunggu ESP reboot...';
+            }, 5000);
+            setTimeout(function() {
+                checkStatus();
+                statusEl.textContent = '';
+                statusEl.style.display = 'none';
+            }, 20000);
+        } else {
+            statusEl.className = 'text-danger';
+            statusEl.textContent = 'Gagal: ' + (d.error || 'Unknown error');
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash-alt"></i> Reset EEPROM Device';
+    })
+    .catch(function() {
+        statusEl.className = 'text-danger';
+        statusEl.textContent = 'Gagal koneksi ke server.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash-alt"></i> Reset EEPROM Device';
     });
 }
 

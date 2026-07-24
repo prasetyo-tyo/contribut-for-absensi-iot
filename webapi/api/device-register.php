@@ -48,6 +48,17 @@ if (empty($mac) || !preg_match('/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i', $mac)) {
     exit;
 }
 
+// Sanitasi device_id: hanya alfanumerik + strip + underscore, tolak sampah
+if (!empty($deviceId)) {
+    $deviceIdSanitized = preg_replace('/[^a-zA-Z0-9\-_\.]/', '', $deviceId);
+    if ($deviceIdSanitized !== $deviceId || strlen($deviceIdSanitized) < 3) {
+        // Device ID mengandung karakter sampah — ignore dan treat sebagai tidak ada
+        $deviceId = '';
+    } else {
+        $deviceId = substr($deviceIdSanitized, 0, 50); // max 50 chars
+    }
+}
+
 // UPSERT device_config — register atau update last_seen_at
 if (!empty($deviceId)) {
     // ESP kirim device_id → simpan ke kolom device_id

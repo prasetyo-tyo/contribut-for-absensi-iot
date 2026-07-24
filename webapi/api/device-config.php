@@ -66,7 +66,8 @@ $response = [
     'outlet_id' => $row['outlet_id'] ? (int)$row['outlet_id'] : null,
     'nama_outlet' => $row['nama_outlet'],
     'config_version' => (int)$row['wifi_config_version'],
-    'current_mode' => $row['current_mode'] ?? 'absen'
+    'current_mode' => $row['current_mode'] ?? 'absen',
+    'reset_device' => ((int)$row['reset_device'] === 1)
 ];
 
 // Cek scan command
@@ -79,6 +80,11 @@ if ((int)$row['wifi_pending'] === 1 && (int)$row['wifi_applied_version'] < (int)
     $response['wifi_password'] = $row['wifi_pending_password'];
 } else {
     $response['wifi_pending'] = false;
+}
+
+// Clear reset_device flag after sending to ESP (prevent infinite loop)
+if (!empty($response['reset_device'])) {
+    mysqli_query($link, "UPDATE device_config SET reset_device = 0 WHERE mac_address = '$escaped_mac'");
 }
 
 echo json_encode($response);

@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS `device_config` (
   `scan_requested_at` datetime DEFAULT NULL,
   `scan_completed_at` datetime DEFAULT NULL,
   
+  -- Remote reset
+  `reset_device` tinyint(1) NOT NULL DEFAULT 0 COMMENT '1 = ESP wipe EEPROM + reboot',
+  
   -- Status
   `last_seen_at` datetime DEFAULT NULL COMMENT 'Last poll dari ESP',
   `firmware_version` varchar(20) DEFAULT NULL,

@@ -100,8 +100,9 @@ void doDeviceRegister();
 // ─── EEPROM Helpers ────────────────────────────────────────
 void eepromReadString(int addr, char* buf, int maxLen) {
   for (int i = 0; i < maxLen; i++) {
-    buf[i] = EEPROM.read(addr + i);
-    if (buf[i] == '\0') break;
+    byte b = EEPROM.read(addr + i);
+    if (b == '\0' || b == 0xFF) break;
+    buf[i] = b;
   }
   buf[maxLen - 1] = '\0';
 }
@@ -123,6 +124,14 @@ void saveWifiToEeprom(const String &ssid, const String &pass, const String &devi
   EEPROM.write(ADDR_MAGIC, EEPROM_MAGIC);
   EEPROM.commit();
   Serial.println(F("Config saved to EEPROM"));
+}
+
+void wipeEeprom() {
+  for (int i = 0; i < EEPROM_SIZE; i++) {
+    EEPROM.write(i, 0xFF);
+  }
+  EEPROM.commit();
+  Serial.println(F("EEPROM wiped — all 0xFF"));
 }
 
 String eepromReadSSID() {
@@ -164,19 +173,28 @@ void setup()
   SPI.begin();
 
   // ─── Step 1: Coba WiFi dari EEPROM ──────────────────────────
-  String savedSSID = eepromReadSSID();
-  String savedPass = eepromReadPass();
-  current_device_id = eepromReadDeviceId();
+  String savedSSID = "";
+  String savedPass = "";
+  current_device_id = "";
 
   Serial.println();
   Serial.print(F("EEPROM valid: "));
   Serial.println(isEepromValid() ? "YES" : "NO");
-  Serial.print(F("Saved SSID: '"));
-  Serial.print(savedSSID);
-  Serial.println("'");
-  Serial.print(F("Device ID: '"));
-  Serial.print(current_device_id);
-  Serial.println("'");
+
+  if (isEepromValid()) {
+    savedSSID = eepromReadSSID();
+    savedPass = eepromReadPass();
+    current_device_id = eepromReadDeviceId();
+
+    Serial.print(F("Saved SSID: '"));
+    Serial.print(savedSSID);
+    Serial.println("'");
+    Serial.print(F("Device ID: '"));
+    Serial.print(current_device_id);
+    Serial.println("'");
+  } else {
+    Serial.println(F("EEPROM not initialized — will generate Device ID from MAC"));
+  }
   
   bool connected = false;
 
@@ -227,9 +245,17 @@ void setup()
     if (WiFi.status() == WL_CONNECTED) {
       connected = true;
       Serial.println(F("Hardcoded WiFi connected!"));
+      // Generate device_id dari MAC jika belum ada
+      if (current_device_id.length() == 0) {
+        String mac = WiFi.macAddress();
+        current_device_id = "esp-" + mac;
+        current_device_id.replace(":", "");
+        current_device_id.toLowerCase();
+        Serial.print(F("Generated Device ID from MAC: "));
+        Serial.println(current_device_id);
+      }
       // Simpan ke EEPROM agar next boot langsung connect
-      String fallbackDeviceId = current_device_id.length() > 0 ? current_device_id : "";
-      saveWifiToEeprom("TYO", "SCORPIO2510#", fallbackDeviceId);
+      saveWifiToEeprom("TYO", "SCORPIO2510#", current_device_id);
     }
   }
 
@@ -260,6 +286,15 @@ void setup()
       String newPass = wm.getWiFiPass();
       String newDeviceId = String(deviceParam.getValue());
       newDeviceId.trim();
+
+      // Jika user tidak isi Device ID, generate dari MAC
+      if (newDeviceId.length() == 0) {
+        newDeviceId = "esp-" + WiFi.macAddress();
+        newDeviceId.replace(":", "");
+        newDeviceId.toLowerCase();
+        Serial.print(F("Auto-generated Device ID: "));
+        Serial.println(newDeviceId);
+      }
 
       saveWifiToEeprom(newSSID, newPass, newDeviceId);
       current_device_id = newDeviceId;
@@ -626,6 +661,23 @@ void pollDeviceConfig() {
       lcd.print("No WiFi found");
       delay(1500);
     }
+  }
+
+  // ─── Cek Reset Device Command ─────────────────────────────────
+  if (doc.containsKey("reset_device") && doc["reset_device"].as<bool>()) {
+    Serial.println(F("========================================"));
+    Serial.println(F("REMOTE EEPROM WIPE requested by server"));
+    Serial.println(F("========================================"));
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("  REMOTE RESET!  ");
+    lcd.setCursor(0, 1);
+    lcd.print("Clearing EEPROM..");
+
+    wipeEeprom();
+    delay(1000);
+    Serial.println(F("Rebooting after EEPROM wipe..."));
+    ESP.restart();
   }
 
   // ─── Update config version ─────────────────────────────────────
